@@ -1,0 +1,44 @@
+# Runtime conditions that are true of almost every enterprise web app, merged
+# into every compiled capability *after* the flow-specific rules the model
+# proposed (first match wins, so a specific rule always beats a generic one).
+#
+# This is the library a platform team curates once; per-app and per-tenant
+# rules layer on top of it.
+
+rules:
+  - code: SESSION_EXPIRED
+    classification: hard_failure
+    when: { kind: text_present, value: "your session has expired" }
+    message: >-
+      The application session expired mid-flow. The caller should re-invoke with
+      a fresh session rather than treating this as a business answer.
+
+  - code: SESSION_TIMEOUT
+    classification: hard_failure
+    when: { kind: text_present, value: "session timed out" }
+    message: The application session timed out mid-flow.
+
+  - code: PERMISSION_DENIED
+    classification: business_outcome
+    when: { kind: text_present, value: "you do not have permission" }
+    message: >-
+      The service account is not entitled to this record or action. This is a
+      real answer for the caller, not a malfunction - it usually means the
+      request needs a differently entitled operator.
+
+  - code: LOCKED_OUT
+    classification: business_outcome
+    when: { kind: text_present, value: "has been locked out" }
+    message: The account used for this session is locked out.
+
+  - code: SERVER_ERROR
+    classification: hard_failure
+    when: { kind: text_present, value: "internal server error" }
+    message: The application returned a server error.
+
+  - code: MAINTENANCE_NOTICE
+    classification: recoverable
+    when: { kind: text_present, value: "scheduled maintenance" }
+    recovery: dismiss_interstitial
+    max_recoveries: 2
+    message: A maintenance interstitial appeared and was dismissed.

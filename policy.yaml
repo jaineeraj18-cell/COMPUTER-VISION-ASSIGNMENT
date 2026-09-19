@@ -1,0 +1,66 @@
+# Guardrails. Loaded by both the discovery loop and the replay engine, so there
+# is one enforcement point and no way for a recorded artifact to outrank it.
+#
+# In production this file is per tenant + per app: the agent that services
+# accounts for Credit Union A must not be able to reach Credit Union B's
+# instance, and "which routes" is how you say that.
+
+allowed_domains:
+  - "www.saucedemo.com"      # public demo target for this project
+  - "saucedemo.com"
+  - "127.0.0.1"              # local tenant-variant app (cross-tenant demo)
+  - "localhost"
+
+# Routes the agent may touch. Broad here because the demo app is small; in a
+# real deployment this is an explicit list of servicing screens, and everything
+# else (admin, config, user management) is simply absent from it.
+allowed_path_globs:
+  - "/"
+  - "/inventory.html"
+  - "/inventory-item.html*"
+  - "/cart.html"
+  - "/checkout-step-one.html"
+  - "/checkout-step-two.html"
+  - "/checkout-complete.html"
+  - "/variant/*"
+
+# Belt and braces: even if a glob above got sloppy, these are never permitted.
+denied_path_globs:
+  - "/admin*"
+  - "/*/delete*"
+
+allowed_actions:
+  - navigate
+  - click
+  - type
+  - select
+  - press_key
+  - wait_for
+  - read
+
+# Controls whose name suggests an irreversible or money-moving action. Matched
+# case-insensitively against the control's accessible name.
+#
+# Judgement call: we classify by *intent expressed in the UI* rather than by
+# HTTP verb, because in a legacy app everything is a POST and the only honest
+# signal about what a button does is what it says to the operator.
+risky_control_patterns:
+  - "\\bfinish\\b"          # saucedemo: the button that places the order
+  - "\\bsubmit transfer\\b"
+  - "\\bdelete\\b"
+  - "\\bclose account\\b"
+  - "\\bwire\\b"
+  - "\\bpost transaction\\b"
+  - "\\bapprove\\b"
+
+# require_approval -> pause and ask a human (default; see REPORT.md section 6)
+# block           -> refuse outright
+# flag            -> allow but record loudly
+risky_mode: require_approval
+
+# Screenshots can contain PII that no regex will catch, so they are evidence
+# only (failure / escalation frames), and can be switched off per environment.
+allow_screenshots: true
+
+# Hard ceiling on a discovery run, independent of any CLI flag.
+max_steps: 25
